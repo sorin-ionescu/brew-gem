@@ -60,7 +60,7 @@ class RubyGemFormula < Formula
     bin.mkpath
 
     ruby_libs = Dir.glob("#{prefix}/gems/*/lib")
-    Pathname.glob("#{prefix}/gems/#{name}-#{version[0]}/bin/*").each do |file|
+    Pathname.glob("#{prefix}/gems/#{name}-#{version}/bin/*").each do |file|
       (bin+file.basename).open('w') do |f|
         f << <<-RUBY
 #!/usr/bin/env ruby

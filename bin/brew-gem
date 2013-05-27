@@ -34,16 +34,13 @@ end
 __END__
 require 'formula'
 
+class RubyGemDownloadStrategy < AbstractDownloadStrategy
+  def fetch; Pathname.new ''; end
+  def stage; Pathname.new ''; end
+  def cached_location; Pathname.new ''; end
+end
+
 class RubyGemFormula < Formula
-  class NoopDownloadStrategy < AbstractDownloadStrategy
-    def fetch; end
-    def stage; end
-  end
-
-  def download_strategy
-    NoopDownloadStrategy
-  end
-
   def install
     # set GEM_HOME and GEM_PATH to make sure we package all the dependent gems
     # together without accidently picking up other gems on the gem path since
@@ -75,6 +72,6 @@ load "#{file}"
 end
 
 class <%= klass %> < RubyGemFormula
-  url "http://rubygems.org/downloads/<%= name %>-<%= version[0] %>.gem"
+  url "http://rubygems.org/downloads/<%= name %>-<%= version[0] %>.gem", :using => RubyGemDownloadStrategy
   homepage "http://rubygems.org/gems/<%= name %>"
 end

@@ -51,6 +51,7 @@ class RubyGemFormula < Formula
     system "gem", "install", "<%= gem_name %>",
              "--version", "<%= version[i] %>",
              "--no-rdoc", "--no-ri",
+             "--no-user-install",
              "--install-dir", prefix,
              "--bindir", bin
 <% end %>

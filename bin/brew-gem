@@ -1,78 +1,106 @@
 #!/usr/bin/env ruby
 
-unless name = ARGV[0]
-  abort "Please specify a gem name (e.g. brew gem <name> [<dependency>[ <dependency>...]])"
+name = nil
+version = nil
+options = []
+gems = []
+
+if $PROGRAM_NAME != __FILE__
+  raise LoadError, "File is executable: #{__FILE__}"
 end
 
-version = []
-ARGV.each_with_index do |gem_name, i|
-  gems = `gem list --remote "^#{gem_name}$"`.lines
-  unless gems.detect { |f| f =~ /^#{gem_name} \(([^\s,]+).*\)/ }
-    abort "Could not find a valid gem '#{gem_name}'"
+ARGV.each do |arg|
+  if arg =~ /^-{1,2}[A-Za-z0-9]+/
+    options << arg
+    next
   end
-  version[i] = $1
+
+  unless `gem specification --remote '#{arg}' version`.each_line.find { |s| s =~ /^version:\s+(.*)$/ }
+    abort "Could not find a valid gem '#{arg}'"
+  end
+
+  gems << arg
+
+  if name.nil?
+    name = arg
+    version = Regexp.last_match[1]
+  end
 end
 
-klass = name.capitalize.gsub(/[-_.\s]([a-zA-Z0-9])/) { $1.upcase }.gsub('+', 'x')
+if name.nil?
+  abort 'Usage: brew gem [--option] <name> [dependency ...])'
+end
+
+klass = 'Ruby' + name.scan(/[A-Za-z0-9]+/).map(&:capitalize).join
 
 require 'erb'
-template = ERB.new(File.read(__FILE__).split(/^__END__$/, 2)[1].strip)
+template = ERB.new(DATA.read, nil, '-')
 
 require 'tempfile'
-filename = File.join Dir.tmpdir, "#{name}.rb"
+formula = File.join Dir.tmpdir, "ruby-#{name}.rb"
 
 begin
-  open(filename, 'w') do |f|
+  open(formula, 'w') do |f|
     f.puts template.result(binding)
   end
 
-  system "brew install #{filename}"
+  system 'brew', 'install', '--env=std', *options, formula
 ensure
-  File.unlink filename
+  File.unlink formula
 end
 
 __END__
 require 'formula'
 
-class RubyGemDownloadStrategy < AbstractDownloadStrategy
+class NopDownloadStrategy < AbstractDownloadStrategy
   def fetch; Pathname.new ''; end
   def stage; Pathname.new ''; end
   def cached_location; Pathname.new ''; end
 end
 
-class RubyGemFormula < Formula
-  def install
-    # set GEM_HOME and GEM_PATH to make sure we package all the dependent gems
-    # together without accidently picking up other gems on the gem path since
-    # they might not be there if, say, we change to a different rvm gemset
-    ENV['GEM_HOME']="#{prefix}"
-    ENV['GEM_PATH']="#{prefix}"
-<% ARGV.each_with_index do |gem_name, i| %>
-    system "gem", "install", "<%= gem_name %>",
-             "--version", "<%= version[i] %>",
-             "--no-rdoc", "--no-ri",
-             "--no-user-install",
-             "--install-dir", prefix,
-             "--bindir", bin
-<% end %>
-    bin.rmtree
-    bin.mkpath
+class BundlerInstalled < Requirement
+  fatal true
 
-    ruby_libs = Dir.glob("#{prefix}/gems/*/lib")
-    Pathname.glob("#{prefix}/gems/#{name}-#{version}/bin/*").each do |file|
-      (bin+file.basename).open('w') do |f|
-        f << <<-RUBY
-#!/usr/bin/env ruby
-ENV['GEM_HOME']="#{prefix}"
-$:.unshift(#{ruby_libs.map(&:inspect).join(",")})
-load "#{file}"
-        RUBY
-      end
-    end
+  satisfy do
+    which 'bundle'
+  end
+
+  def message; <<-EOS.undent
+    Bundler is required to install.
+
+    You can install it with:
+      gem install bundler
+
+    You can read more about Bundler at:
+      http://bundler.io
+    EOS
   end
 end
 
-class <%= klass %> < RubyGemFormula
-  url "http://rubygems.org/downloads/<%= name %>-<%= version[0] %>.gem", :using => RubyGemDownloadStrategy
-  homepage "http://rubygems.org/gems/<%= name %>"
+class <%= klass %> < Formula
+  url 'http://rubygems.org/downloads/<%= name %>-<%= version %>.gem', :using => NopDownloadStrategy
+  homepage 'http://rubygems.org/gems/<%= name %>'
+
+  depends_on BundlerInstalled
+
+  def install
+    Dir.chdir prefix
+
+    open('Gemfile', 'w') do |f|
+      f.puts "source 'https://rubygems.org'"
+      <%- gems.each do |g| -%>
+      f.puts "gem '<%= g %>'"
+      <%- end -%>
+    end
+
+    system 'bundle', 'install', "--path=#{libexec + '<%= name %>'}", '--binstubs'
+
+    bin_entries = Dir.new(bin).entries
+    gem_bin = File.join(`bundle show <%= name %>`.strip, 'bin')
+    gem_bin_entries = Dir.new(gem_bin).entries rescue []
+    (bin_entries - gem_bin_entries).each do |f|
+      next if f =~ /^\.{1,2}$/
+      File.delete bin + f
+    end
+  end
 end

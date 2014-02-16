@@ -1,9 +1,9 @@
-brew-gem -- install gems as homebrew formulas
+brew-gem -- install gems as Homebrew formulas
 =============================================
 
-`brew gem` allows you to install any rubygem as a homebrew formula.
+`brew gem` allows you to install any Ruby gem as a Homebrew formula.
 
-It works by generating a stub formula for homebrew, which looks something like this:
+It works by generating a stub formula for Homebrew, which looks something like this:
 
     class Ronn < Formula
       def initialize(*args)
@@ -13,7 +13,7 @@ It works by generating a stub formula for homebrew, which looks something like t
       end
 
       def install
-        system "gem", "install", name, "--version", version, "--install-dir", prefix
+        system "bundle", "install", "--path=#{libexec + name}", "--binstubs"
       end
     end
 
@@ -22,6 +22,7 @@ This formula installs and unpacks all the dependencies under the Cellar path. So
 Install
 -------
 
+    gem install bundler
     brew install brew-gem
 
 Usage

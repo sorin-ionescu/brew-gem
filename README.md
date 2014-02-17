@@ -1,7 +1,7 @@
-brew-gem -- install gems as Homebrew formulas
+brew-ruby -- install gems as Homebrew formulas
 =============================================
 
-`brew gem` allows you to install any Ruby gem as a Homebrew formula.
+`brew ruby` allows you to install any Ruby gem as a Homebrew formula.
 
 It works by generating a stub formula for Homebrew, which looks something like this:
 
@@ -23,19 +23,19 @@ Install
 -------
 
     gem install bundler
-    brew install brew-gem
+    brew install brew-ruby
 
 Usage
 -----
 
-    brew gem heroku
+    brew ruby heroku
 
 Additionally, you may declare additional dependent gems that are
 specifically required by the original gem. For example, let's say you
 wanted to install capistrano and you need the capistrano-ext gem as
 well.
 
-    brew gem capistrano capistrano-ext
+    brew ruby capistrano capistrano-ext
 
 Philosophy
 ----------
